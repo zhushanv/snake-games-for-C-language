@@ -1,0 +1,294 @@
+#include<stdio.h>
+#include<windows.h>
+#include<stdbool.h>
+
+#defiine MAX_COLUMN 30
+#define MAX_ROWS 30
+#define MAX_X_BEGIN 0
+#define MAX_Y_BEGIN 0
+
+HANDLE myHandle;
+COORD position;
+
+//游戏开始，设置光标，窗口大小，标题
+void gameInit()
+{
+    //光标信息
+    CONSOLE_CURSOR_INFO console_Info = { 1, false };
+    //获取控制台输出句柄
+    myHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+    //设置光标掩藏
+    SetConsoleCursorInfo(myHandle, &console_Info);
+    //设置控制台标题
+    SetConsoleTitleA("贪吃蛇");
+    //设置控制台文本属性
+    SetConsoleTextAttribute(myHandle, 0x7);
+
+    /*
+        注意:如果设置窗口的大小大于屏幕缓冲区大小的话，设置窗口大小失败。
+        COORD 的X和Y成员都是SHORT理论上他们的设置数值范围是0-32767，实际
+        并非如此。X的范围是80到32766，Y的范围是25到32766，不在这个范围的
+        话设置就失败了,rc设置为比XY小1，不然就设置失败了
+    */
+
+    //以下为设置窗口大小，以及位置
+    //获取缓冲区信息
+    COORD size = { 100, 31 };
+    SMALL_RECT rc = { 0, 0, 100 - 1, 31 - 1 };
+    //设置窗口缓冲区大小
+    SetConsoleScreenBufferSize(myHandle, size);
+    //设置窗口大小
+    SetConsoleWindowInfo(myHandle, 1, &rc);
+}
+
+Void mainMenu(){
+	System("cls");//清空控制台缓冲区
+	Fflush(stdin);//清空输入缓冲区
+	/*
+	不清空输入缓冲区可能会导致：
+		• 多次读取输入时，读取到残留的数据（如换行符），影响后续输入操作。
+		• 无法正确读取用户输入，导致程序逻辑错误或意外行为。
+	*/
+	
+	//下面进行一系列的交互操作
+	Static int press = 1; //函数运行结束后内存不会被释放
+	//只有文本的菜单，并不能进行其他交互操作	
+	  gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 6, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 4);
+	    SetConsoleTextAttribute(myHandle, 0xE);
+	    printf("*   MENU   *");
+	    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 4, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	    printf(" 正常模式");
+	    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 2, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	    printf(" 限时模式");
+	    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 0, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	    printf(" 完美模式");
+	    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 2, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	    printf(" 暴走模式");
+	    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 4, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	    printf(" 游戏帮助");
+	    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 6, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	    printf(" 退出游戏");
+	
+	 //先显示未操作状态下的的初始状态，即光标在正常模式之下，选择项被标红和带有星标
+	    switch (press)
+	    {
+	    case 1:
+	        SetConsoleTextAttribute(myHandle, 0xC);
+	        gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 4, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	        printf("*正常模式");
+	        break;
+	    case 2:
+	        SetConsoleTextAttribute(myHandle, 0xC);
+	        gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 2, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	        printf("*限时模式");
+	        break;
+	    case 3:
+	        SetConsoleTextAttribute(myHandle, 0xC);
+	        gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 0, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	        printf("*完美模式");
+	        break;
+	    case 4:
+	        SetConsoleTextAttribute(myHandle, 0xC);
+	        gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 2, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	        printf("*暴走模式");
+	        break;
+	    case 5:
+	        SetConsoleTextAttribute(myHandle, 0xC);
+	        gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 4, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	        printf("*游戏帮助");
+	        break;
+	    case 6:
+	        SetConsoleTextAttribute(myHandle, 0xC);
+	        gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 6, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+	        printf("*退出游戏");
+	        break;
+	    default:
+	        break;
+	    }
+	//以上总结来说就是在printf的基础上增加了指定位置的功能和改变文本颜色的技巧
+	//模拟操作：选择菜单栏中的选项
+	//固定操作，检查键盘是否被按下，并检查按下哪个键
+	
+	do{
+      int flag = 0;
+    //暂时的循环停止指示
+	    int key = -1;
+	    bool isPress = false;
+	    int direct = 0;//记录方向，便于还原选项样貌操作
+	    while(_kbhit()){
+	     key = _getch();
+	     isPress = true;
+	    }
+    //通过press数值的变化来反映选项的变化，妙
+    switch(key) {
+      case 'w':
+      case 'W':
+      case  8:
+      case 72:
+    //游戏中常见的向上操作
+         if(press == 1){ press = 6;} //处理边界情况 
+         else press++;
+        direct = 1;
+         break;
+      case 'S':
+      case 's':
+      case  2:
+      case  80:
+         if(press == 6){press == 1;}
+        else press--;
+        direct = 0;
+         break;
+      case 13:
+      case 77:
+      //按下enter或者右键
+         flag = 1;
+      break;
+      default:
+         break;
+    }
+    switch (press)
+        {
+        case 1:
+            //还原前一次选择的输出的颜色为菜单颜色，根据direct来判断哪个为前一次用户的选择，
+            //只有在按下键时才进行更新显示,用于避免闪烁（频繁地刷新相同的内容可能会导致屏幕闪烁或视觉上的不适），和实现选择的选项颜色的变化
+          //记住只有在按下键的是否才会有进一步的变化，
+            if (isPress)
+           {
+                if (direct)
+                {
+                    //如果向下,还原其上一个选项的输出颜色,即case 6下同
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 6, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 退出游戏");
+                }
+                else
+                {
+                    //如果向上,还原其下一个选项的输出颜色，即case 2下同
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 2, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 限时模式");
+                }
+                SetConsoleTextAttribute(myHandle, 0xB);
+                gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 4, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                printf("*正常模式");
+            }
+            break;
+        case 2:
+            if (isPress)
+           {
+                if (direct)
+                {
+            
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 4, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 正常模式");
+                }
+                else
+                {
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 0, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 完美模式");
+                }
+                SetConsoleTextAttribute(myHandle, 0xB);
+                gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 2, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                printf("*限时模式");
+            }
+            break;
+        case 3:
+            if (isPress)
+            {
+                if (direct)
+                {
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 2, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 限时模式");
+                }
+                else
+                {
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 2, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 暴走模式");
+                }
+                SetConsoleTextAttribute(myHandle, 0xB);
+                gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 0, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                printf("*完美模式");
+           }
+            break;
+        case 4:
+           if (isPress)
+            {
+                if (direct)
+                {
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 0, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 完美模式");
+                }
+                else
+                {
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 4, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 游戏帮助");
+                }
+                SetConsoleTextAttribute(myHandle, 0xB);
+                gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 2, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                printf("*暴走模式");
+            }
+            break;
+        case 5:
+           if (isPress)
+            {
+                if (direct)
+                {
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 2, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 暴走模式");
+                }
+                else
+                {
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 6, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 退出游戏");
+                }
+
+                SetConsoleTextAttribute(myHandle, 0xB);
+                gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 4, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                printf("*游戏帮助");
+            }
+
+            break;
+
+            //如果放在这里可以制造一点闪烁效果
+            /*
+            SetConsoleTextAttribute(myHandle, 0xB);
+            gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 4, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+            printf("*游戏帮助");break;
+            */
+        case 6:
+            if (isPress)
+          {
+                if (direct)
+                {
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 4, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 游戏帮助");
+                }
+                else
+                {
+                    SetConsoleTextAttribute(myHandle, 0xE);
+                    gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 - 4, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                    printf(" 正常模式");
+                }
+                SetConsoleTextAttribute(myHandle, 0xB);
+                gotoxy((MAX_RANDS - WALL_X_BEGIN) / 2 + 6, (MAX_ROWS - WALL_Y_BEGIN) / 2 - 3);
+                printf("*退出游戏");
+            }
+            break;
+        default:
+            break;
+        }
+
+        //清空输入缓冲区
+        fflush(stdin);
+    
+  } while(!flag);
+}
